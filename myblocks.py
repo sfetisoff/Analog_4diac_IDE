@@ -1,4 +1,5 @@
-from PyQt5.QtCore import QRect, QPoint
+from PyQt5.QtCore import QRect, QPoint, Qt
+from PyQt5.QtWidgets import QLabel, QLineEdit
 
 
 class MyRect(QRect):
@@ -10,17 +11,22 @@ class MyRect(QRect):
 
 
 class MyBlock:
-    def __init__(self, main_window, name=None, x=300, y=300, width=150, height=200, color='darkCyan', n_rects_left=4, n_rects_right=4, labels=None):
+    def __init__(self, main_window, name=None, x=300, y=300, width=100, height=140, color='darkCyan', n_rects_left=4, n_rects_right=4, labels=None):
         self.main_window = main_window
         self.name = name
-        self.x = x
-        self.y = y
+
+        self.x = x # Координата х центрального элемента
+        self.y = y # Координаты у центрального элемента
         self.width = width
         self.height = height
         self.rectangles = []
         self.labels = labels
+        self.type = labels[0]
 
-        self.connections = {label: [] for label in self.labels}
+        self.name_label, self.name_edit = self.create_label()
+
+
+        self.connections = {self.labels[i]: [] for i in range(1,len(self.labels))}
         self.n_rects_left = n_rects_left
         self.n_rects_right = n_rects_right
         self.color = color
@@ -29,9 +35,22 @@ class MyBlock:
         self.cell_width = int(self.width / 2)
         self.create_rect()
 
+    def create_label(self):
+        name_label = QLabel(self.name, self.main_window)
+        name_label.setAlignment(Qt.AlignCenter)
+        name_label.setGeometry(400, 100, 300, 30)  # Устанавливаем положение и размер метки
+
+        # Создаем поле для ввода текста
+        name_edit = QLineEdit(self.main_window)
+        name_edit.setGeometry(400, 100, 300, 30)  # Устанавливаем положение и размер поля ввода
+        name_edit.setVisible(False)
+        name_label.mousePressEvent = lambda event: self.main_window.on_label_click(event, self)
+
+        return name_label, name_edit
+
     def create_rect(self):
         self.rectangles.append(MyRect(self.x, self.y, self.width, self.height,
-                                      name=self.labels[0], parent=self))
+                                      name=self.type, parent=self))
         # cell_x_left = self.x
         cell_x_left = self.x - self.cell_width
         for cur_rect in range(self.n_rects_left):
@@ -56,7 +75,7 @@ class MyBlock:
             rect.moveTo(current_x - dx, current_y - dy)
 
             for line in rect.connect_lines:
-                if rect.contains(line.p2()): # Проверка, какая из 2 точек линии в прямоугольнике
+                if rect.contains(line.p2()): # Проверка, какая из 2 точек линии связи в прямоугольнике
                     line.setP2(QPoint(rect.center().x(), rect.center().y()))
                 else:
                     line.setP1(QPoint(rect.center().x(), rect.center().y()))
@@ -65,15 +84,22 @@ class MyBlock:
             self.y = self.rectangles[0].y()
 
 
+class BlockStart(MyBlock):
+    def __init__(self, main_window, name=None):
+        super().__init__(main_window, name=name, width=80, height=100, color='darkRed',
+                         n_rects_left=1, n_rects_right=2, labels=['E_RESTART', 'STOP', 'COLD', 'WARM'])
+
+
+
 class BlockA(MyBlock): # INT2INT
     def __init__(self, main_window, name=None):
-        super().__init__(main_window, name=name, color = 'darkCyan',
-                         n_rects_left=2, n_rects_right=2, labels=['INT2INT','REQ','IN','CNF', 'OUT'])
+        super().__init__(main_window, name=name, color='darkCyan',
+                         n_rects_left=2, n_rects_right=2, labels=['INT2INT', 'REQ', 'IN', 'CNF', 'OUT'])
 
 
 class BlockB(MyBlock): #OUT_ANY_CONSOLE
     def __init__(self, main_window, name=None):
-        super().__init__(main_window, name=name, color = 'darkMagenta',
+        super().__init__(main_window, name=name, width=140, height=140, color='darkMagenta',
                          n_rects_left=4, n_rects_right=2, labels=['OUT_ANY_CONSOLE','REQ','QI','LABEL','IN','CNF','QO'])
 
 class BlockC(MyBlock):

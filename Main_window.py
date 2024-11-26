@@ -1,20 +1,24 @@
 import sys
+from importlib.resources import Resource
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QMessageBox, QLabel, QPushButton
+from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QMessageBox, QLabel, QPushButton, QLineEdit
 from PyQt5.QtGui import QPainter, QColor, QPen
 from PyQt5.QtCore import QRect, QLine, Qt, QPoint
+import xml.etree.ElementTree as ET
 
-from myblocks import BlockA, BlockB, BlockC, BlockD, MyBlock
-
+from myblocks import BlockA, BlockB, BlockC, BlockD, MyBlock, BlockStart
+from xml_saving import create_xml
 
 
 
 class MyMain(QMainWindow):
     def __init__(self):
         super().__init__()
+
         self.setWindowTitle("Рисование прямоугольника")
         self.setGeometry(100, 100, 800, 600)  # Установка размера окна
-        self.list_blocks = []
+        self.list_blocks = [] # Список со всеми блоками
+        self.block_start = None
         self.label = QLabel("Нажмите и двигайте мышь", self)
         self.label.setGeometry(50, 50, 300, 50)
         # Хранение координат для рисования
@@ -24,21 +28,26 @@ class MyMain(QMainWindow):
         self.connecting = False # Если True - выбран прямоугольник для связи
         self.all_lines = [] # Все линии связи
         self.current_line = None
-        self.menu = self.menuBar().addMenu("Выбрать блок")
+        self.menu_file = self.menuBar().addMenu("Файл")
+        self.menu_blocks = self.menuBar().addMenu("Выбрать блок")
         self.setMouseTracking(True)
         self.rect_start_connect = None # Прямоугольник, из которого начали строить связь
+        self.count_blocks = {'Block_A': 1, 'Block_B': 1, 'Block_C': 1, 'Block_D': 1}
+
         self.create_actions()
+
+
+    def update_all(self):
+        self.update()
+        self.update_block_names()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         for block in self.list_blocks:
             painter.setBrush(QColor(block.color))
-            for rect, text in zip(block.rectangles, block.labels):
-                painter.drawRect(rect)
-                text_rect = painter.boundingRect(rect, 0, text) # Добавляем подписи к прямоугольникам
-                text_x = int(rect.x() + (rect.width() - text_rect.width()) / 2) # Центруем надпись в прямоугольнике
-                text_y = int(rect.y() + (rect.height() - text_rect.height()) / 2)
-                painter.drawText(text_x, text_y + text_rect.height(), text)
+            for rect in block.rectangles:
+                painter.drawRect(rect) # Рисуем блок
+                painter.drawText(rect, Qt.AlignCenter, rect.name) # Рисуем центрированный тип элемента(CNF, IN ...)
 
         pen = QPen(Qt.yellow, 3)
         for line in self.all_lines:
@@ -46,13 +55,41 @@ class MyMain(QMainWindow):
             painter.drawLine(line)
 
 
+    def update_block_names(self):
+        for block in self.list_blocks:
+            name_x = int(block.x + (block.width - block.name_label.width()) / 2)  # Центруем надпись в прямоугольнике
+            name_y = block.y - block.height // 4
+            block.name_label.move(name_x, name_y)
+            block.name_edit.move(name_x, name_y)
+            block.name_label.show()
+
+    def on_label_click(self, event, block):
+        # При нажатии на метку скрываем метку и показываем поле ввода
+        block.name_edit.setText(block.name_label.text())
+        block.name_edit.setVisible(True)
+        block.name_edit.setFocus()
+        # Подключаем сигнал для завершения редактирования
+        try:
+            block.name_edit.returnPressed.disconnect()
+        except:
+            pass
+        block.name_edit.returnPressed.connect(lambda: self.on_edit_finished(block))
+        # Скрываем метку
+        block.name_label.setVisible(False)
+
+    def on_edit_finished(self, block):
+        # При завершении редактирования обновляем текст метки и скрываем поле ввода
+        block.name_label.setText(block.name_edit.text())
+        block.name = block.name_edit.text() # Обновляем block.name
+        block.name_label.setVisible(True)
+        block.name_edit.setVisible(False)
+
 
     def find_connection_rect(self):
         for block in self.list_blocks:
             for small_rect in block.rectangles[1:]:
                 if small_rect.contains(self.current_x, self.current_y):
                     if self.connecting:
-                        #print(self.rect_start_connect.parent.name, self.rect_start_connect.name)
                         small_rect.connect_lines.append(self.current_line)
                         self.rect_start_connect.connect_lines.append(self.current_line)
                         self.rect_start_connect.parent.connections[self.rect_start_connect.name].append((block.name, small_rect.name))
@@ -66,7 +103,7 @@ class MyMain(QMainWindow):
                         self.label.setText(f"Нажат {small_rect.name}")
 
                         self.all_lines.append(self.current_line)
-                        self.update()
+                        self.update_all()
 
                     return True
         return False
@@ -89,7 +126,7 @@ class MyMain(QMainWindow):
         self.last_mouse_pos = event.pos()
         if self.current_block:
             self.current_block.change_coords(self.current_x, self.current_y)
-            self.update()  # Запрос на перерисовку виджета
+            self.update_all()  # Запрос на перерисовку виджета
 
 
     def mouseReleaseEvent(self, event):
@@ -103,8 +140,6 @@ class MyMain(QMainWindow):
         x = event.x()
         y = event.y()
         self.label.setText(f"Отпущено в ({x}, {y})")
-  # Запрос на перерисовку виджета
-#
 
     def mouseMoveEvent(self, event):
         self.current_x = event.x()
@@ -119,12 +154,15 @@ class MyMain(QMainWindow):
             self.label.setText(f"Движение мыши в ({self.current_x}, {self.current_y})")
 
         self.last_mouse_pos = event.pos()
-        self.update()  # Запрос на перерисовку виджета
+        self.update_all()  # Запрос на перерисовку виджета
 
     def create_actions(self):
         self.button = QPushButton('Показать словарь связей', self)
         self.button.setGeometry(50, 40, 200, 30)  # x, y, ширина, высота
         self.button.clicked.connect(self.show_connections)
+
+        create_Start_action = QAction("START", self)
+        create_Start_action.triggered.connect(self.create_block_Start)
 
         create_A_action = QAction("INT2INT", self)
         create_A_action.triggered.connect(self.create_block_A)
@@ -138,30 +176,91 @@ class MyMain(QMainWindow):
         create_D_action = QAction("Block_D", self)
         create_D_action.triggered.connect(self.create_block_D)
 
-        self.menu.addAction(create_A_action)
-        self.menu.addAction(create_B_action)
-        self.menu.addAction(create_C_action)
-        self.menu.addAction(create_D_action)
+        self.menu_blocks.addAction(create_Start_action)
+        self.menu_blocks.addAction(create_A_action)
+        self.menu_blocks.addAction(create_B_action)
+        self.menu_blocks.addAction(create_C_action)
+        self.menu_blocks.addAction(create_D_action)
+
+        open_project_action = QAction("Открыть", self)
+        open_project_action.triggered.connect(self.read_xml)
+
+        create_xml_action = QAction("Создать XML", self)
+        create_xml_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start))
+
+        self.menu_file.addAction(open_project_action)
+        self.menu_file.addAction(create_xml_action)
 
     def show_connections(self):
         for block in self.list_blocks:
             print(block.name, block.connections)
+            for source_element, ar_elements in block.connections.items():
+                if ar_elements:
+                    for dest_block_name, dest_el in ar_elements:
+                        print(f"Connection Source = {block.name}.{source_element},"
+                              f"Destination = {dest_block_name}.{dest_el}, Comment = ")
+
+    def create_block_Start(self):
+        self.block_start = BlockStart(self, 'START')
+        self.list_blocks.append(self.block_start)
+        self.update_all()
 
     def create_block_A(self): #INT2INT
-        self.list_blocks.append(BlockA(self, 'INT2INT'))
-        self.update()
+        k_blocks = self.count_blocks['Block_A'] # Сколько блоков такого типа уже есть
+        self.list_blocks.append(BlockA(self, f'INT2INT_{k_blocks}'))
+        self.count_blocks['Block_A'] += 1
+        self.update_all()
+
 
     def create_block_B(self):
-        self.list_blocks.append(BlockB(self, 'OUT_ANY_CONSOLE'))
-        self.update()
+        k_blocks = self.count_blocks['Block_B']  # Сколько блоков такого типа уже есть
+        self.list_blocks.append(BlockB(self, f'OUT_ANY_CONSOLE_{k_blocks}'))
+        self.count_blocks['Block_B'] += 1
+        self.update_all()
 
     def create_block_C(self):
         self.list_blocks.append(BlockC(self))
-        self.update()
+        self.update_all()
 
     def create_block_D(self):
         self.list_blocks.append(BlockD(self))
-        self.update()
+        self.update_all()
+
+    def contextMenuEvent(self, event):
+        for block in self.list_blocks:
+            # rectangles[0], потому что там находится прямоугольник - основа блока
+            if block.rectangles[0].contains(self.current_x, self.current_y):
+                context_menu = QMenu(self)
+
+                # Добавляем действия в контекстное меню
+                action1 = QAction("Удалить", self)
+                action1.triggered.connect(lambda: self.delete_block(block))
+                context_menu.addAction(action1)
+
+                # Отображаем контекстное меню
+                context_menu.exec_(event.globalPos())
+        self.update_all()
+
+
+    def delete_block(self, block):
+        self.list_blocks.remove(block)
+        block.name_edit.deleteLater()
+        block.name_label.deleteLater()
+
+    def read_xml(self):
+        pass
+        # tree = ET.parse('test_xml.xml')
+        # root = tree.getroot()
+        # device = root.find('Device')
+        # resource = device.find('Resource')
+        # fb_network = resource.find('FBNetwork')
+        # self.create_block_Start()
+        # for fb in fb_network.findall('FB'):
+        #     name = fb.get('Name')
+        #     block_type = fb.get('Type')
+        #     x = fb.get('x')
+        #     y = fb.get('y')
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
