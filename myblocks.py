@@ -85,21 +85,21 @@ class MyBlock:
 
 
 class BlockStart(MyBlock):
-    def __init__(self, main_window, name=None):
-        super().__init__(main_window, name=name, width=80, height=100, color='darkRed',
+    def __init__(self, main_window, name='E_RESTART', x=150, y=150):
+        super().__init__(main_window, name=name, width=80, height=100, color='darkRed', x=x, y=y,
                          n_rects_left=1, n_rects_right=2, labels=['E_RESTART', 'STOP', 'COLD', 'WARM'])
 
 
 
 class BlockA(MyBlock): # INT2INT
-    def __init__(self, main_window, name=None):
-        super().__init__(main_window, name=name, color='darkCyan',
+    def __init__(self, main_window, name='INT2INT', x=300, y=300):
+        super().__init__(main_window, name=name, color='darkCyan', x=x, y=y,
                          n_rects_left=2, n_rects_right=2, labels=['INT2INT', 'REQ', 'IN', 'CNF', 'OUT'])
 
 
 class BlockB(MyBlock): #OUT_ANY_CONSOLE
-    def __init__(self, main_window, name=None):
-        super().__init__(main_window, name=name, width=140, height=140, color='darkMagenta',
+    def __init__(self, main_window, name='OUT_ANY_CONSOLE',x=300,y=300):
+        super().__init__(main_window, name=name, width=140, height=140, color='darkMagenta', x=x, y=y,
                          n_rects_left=4, n_rects_right=2, labels=['OUT_ANY_CONSOLE','REQ','QI','LABEL','IN','CNF','QO'])
 
 class BlockC(MyBlock):

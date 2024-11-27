@@ -6,6 +6,8 @@ from PyQt5.QtGui import QPainter, QColor, QPen
 from PyQt5.QtCore import QRect, QLine, Qt, QPoint
 import xml.etree.ElementTree as ET
 
+import easygui
+
 from myblocks import BlockA, BlockB, BlockC, BlockD, MyBlock, BlockStart
 from xml_saving import create_xml
 
@@ -15,7 +17,7 @@ class MyMain(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("Рисование прямоугольника")
+        self.setWindowTitle("Analog 4diac")
         self.setGeometry(100, 100, 800, 600)  # Установка размера окна
         self.list_blocks = [] # Список со всеми блоками
         self.block_start = None
@@ -24,15 +26,19 @@ class MyMain(QMainWindow):
         # Хранение координат для рисования
         self.current_x = 300
         self.current_y = 300
+        self.coords_coef = 4 # Масштабирование координат для совместимости с 4diac
         self.drawing = False  # Состояние рисования
         self.connecting = False # Если True - выбран прямоугольник для связи
         self.all_lines = [] # Все линии связи
         self.current_line = None
-        self.menu_file = self.menuBar().addMenu("Файл")
-        self.menu_blocks = self.menuBar().addMenu("Выбрать блок")
+        self.menu_file = self.menuBar().addMenu("File")
+        self.menu_blocks = self.menuBar().addMenu("Select a block")
         self.setMouseTracking(True)
         self.rect_start_connect = None # Прямоугольник, из которого начали строить связь
         self.count_blocks = {'Block_A': 1, 'Block_B': 1, 'Block_C': 1, 'Block_D': 1}
+        self.create_block_dict = {'E_RESTART': BlockStart,
+                                  'INT2INT': BlockA,
+                                  'OUT_ANY_CONSOLE': BlockB}
 
         self.create_actions()
 
@@ -182,11 +188,11 @@ class MyMain(QMainWindow):
         self.menu_blocks.addAction(create_C_action)
         self.menu_blocks.addAction(create_D_action)
 
-        open_project_action = QAction("Открыть", self)
+        open_project_action = QAction("Open", self)
         open_project_action.triggered.connect(self.read_xml)
 
-        create_xml_action = QAction("Создать XML", self)
-        create_xml_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start))
+        create_xml_action = QAction("Save as XML", self)
+        create_xml_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start, self.coords_coef))
 
         self.menu_file.addAction(open_project_action)
         self.menu_file.addAction(create_xml_action)
@@ -247,19 +253,59 @@ class MyMain(QMainWindow):
         block.name_edit.deleteLater()
         block.name_label.deleteLater()
 
+    def create_connections(self, connections):
+        for connection in connections.findall('Connection'):
+            source = connection.get('Source')
+            destination = connection.get('Destination')
+            name_source, source_element = source.split('.')
+            name_dest, dest_element = destination.split('.')
+
+            for block in self.list_blocks:
+                if block.name == name_source:
+                    for rect in block.rectangles[1:]:
+                        if rect.name == source_element:
+                            self.rect_start_connect = rect
+                if block.name == name_dest:
+                    for rect in block.rectangles[1:]:
+                        if rect.name == dest_element:
+                            dest_rect = rect
+
+            self.current_line = QLine(self.rect_start_connect.center().x(), self.rect_start_connect.center().y(),
+                                      dest_rect.center().x(), dest_rect.center().y())
+            dest_rect.connect_lines.append(self.current_line)
+            self.rect_start_connect.connect_lines.append(self.current_line)
+            self.rect_start_connect.parent.connections[self.rect_start_connect.name].append(
+                (dest_rect.parent.name, dest_rect.name))
+            self.all_lines.append(self.current_line)
+            self.current_line = None
+
+
+
     def read_xml(self):
-        pass
-        # tree = ET.parse('test_xml.xml')
-        # root = tree.getroot()
-        # device = root.find('Device')
-        # resource = device.find('Resource')
-        # fb_network = resource.find('FBNetwork')
-        # self.create_block_Start()
-        # for fb in fb_network.findall('FB'):
-        #     name = fb.get('Name')
-        #     block_type = fb.get('Type')
-        #     x = fb.get('x')
-        #     y = fb.get('y')
+        try:
+            input_file = easygui.fileopenbox(filetypes=["*.xml"])
+            tree = ET.parse(input_file)
+            root = tree.getroot()
+            device = root.find('Device')
+            resource = device.find('Resource')
+            fb_network = resource.find('FBNetwork')
+            self.create_block_Start()
+
+            for fb in fb_network.findall('FB'): # Создаём FB
+                name = fb.get('Name')
+                block_type = fb.get('Type')
+                x = int(fb.get('x')) // self.coords_coef
+                y = int(fb.get('y')) // self.coords_coef
+
+                self.list_blocks.append(self.create_block_dict[block_type](self, name=name, x=x, y=y))
+
+            event_connections = fb_network.find('EventConnections')
+            data_connections = fb_network.find('DataConnections')
+            self.create_connections(event_connections)
+            self.create_connections(data_connections)
+            self.update_all()
+        except:
+            print("File reading error")
 
 
 if __name__ == "__main__":

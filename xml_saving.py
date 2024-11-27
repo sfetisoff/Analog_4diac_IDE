@@ -1,10 +1,10 @@
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from datetime import datetime
+import easygui
 
+def create_xml(list_blocks, block_start, coords_coef):
 
-def create_xml(list_blocks, block_start):
-    coords_coef = 4
     # Создаем корневой элемент
     name_project = 'Original_project'
     date = datetime.now().strftime("%Y-%m-%d")
@@ -73,8 +73,13 @@ def create_xml(list_blocks, block_start):
     parsed_xml = minidom.parseString(xml_str)
     pretty_xml = parsed_xml.toprettyxml(indent="    ")
 
+    file_path = easygui.filesavebox(
+        title="Сохранить файл",
+        default="*.xml",
+        filetypes=["*.xml"]
+    )
     # Записываем отформатированный XML в файл
-    with open("output_xml.xml", "w", encoding='utf-8') as fh:
+    with open(file_path, "w", encoding='utf-8') as fh:
         fh.write(pretty_xml)
 
     print("Отформатированный XML-файл успешно создан.")
