@@ -38,14 +38,16 @@ class MyMain(QMainWindow):
         self.count_blocks = {'Block_A': 1, 'Block_B': 1, 'Block_C': 1, 'Block_D': 1}
         self.create_block_dict = {'E_RESTART': BlockStart,
                                   'INT2INT': BlockA,
-                                  'OUT_ANY_CONSOLE': BlockB}
+                                  'OUT_ANY_CONSOLE': BlockB,
+                                  'STRING2STRING': BlockC,
+                                  'F_ADD': BlockD}
 
         self.create_actions()
-
 
     def update_all(self):
         self.update()
         self.update_block_names()
+        self.update_rect_values()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -55,41 +57,24 @@ class MyMain(QMainWindow):
                 painter.drawRect(rect) # Рисуем блок
                 painter.drawText(rect, Qt.AlignCenter, rect.name) # Рисуем центрированный тип элемента(CNF, IN ...)
 
-        pen = QPen(Qt.yellow, 3)
+        pen = QPen(Qt.red, 3)
         for line in self.all_lines:
             painter.setPen(pen)  # Устанавливаем цвет линии
             painter.drawLine(line)
 
+    def update_rect_values(self):
+        for block in self.list_blocks:
+            for rect in block.rectangles:
+                if rect.editable_label:
+                    rect.value_x = rect.x() - rect.value_width
+                    rect.value_y = rect.y() + (rect.height() - rect.value_height) // 2
+                    rect.editable_label.move(rect.value_x, rect.value_y)
 
     def update_block_names(self):
         for block in self.list_blocks:
-            name_x = int(block.x + (block.width - block.name_label.width()) / 2)  # Центруем надпись в прямоугольнике
-            name_y = block.y - block.height // 4
-            block.name_label.move(name_x, name_y)
-            block.name_edit.move(name_x, name_y)
-            block.name_label.show()
-
-    def on_label_click(self, event, block):
-        # При нажатии на метку скрываем метку и показываем поле ввода
-        block.name_edit.setText(block.name_label.text())
-        block.name_edit.setVisible(True)
-        block.name_edit.setFocus()
-        # Подключаем сигнал для завершения редактирования
-        try:
-            block.name_edit.returnPressed.disconnect()
-        except:
-            pass
-        block.name_edit.returnPressed.connect(lambda: self.on_edit_finished(block))
-        # Скрываем метку
-        block.name_label.setVisible(False)
-
-    def on_edit_finished(self, block):
-        # При завершении редактирования обновляем текст метки и скрываем поле ввода
-        block.name_label.setText(block.name_edit.text())
-        block.name = block.name_edit.text() # Обновляем block.name
-        block.name_label.setVisible(True)
-        block.name_edit.setVisible(False)
-
+            name_x = block.x + (block.width - block.label_width) // 2 # Центруем надпись в прямоугольнике
+            name_y = block.y - 25
+            block.editable_label.move(name_x, name_y)
 
     def find_connection_rect(self):
         for block in self.list_blocks:
@@ -114,8 +99,6 @@ class MyMain(QMainWindow):
                     return True
         return False
 
-
-
     def find_rect(self): # Ищем прямоугольник, на который нажали
         for block in self.list_blocks:
             # rectangles[0], потому что там находится прямоугольник - основа блока
@@ -133,7 +116,6 @@ class MyMain(QMainWindow):
         if self.current_block:
             self.current_block.change_coords(self.current_x, self.current_y)
             self.update_all()  # Запрос на перерисовку виджета
-
 
     def mouseReleaseEvent(self, event):
         self.current_block = None
@@ -176,10 +158,10 @@ class MyMain(QMainWindow):
         create_B_action = QAction("OUT_ANY_CONSOLE", self)
         create_B_action.triggered.connect(self.create_block_B)
 
-        create_C_action = QAction("Block_C", self)
+        create_C_action = QAction("STRING2STRING", self)
         create_C_action.triggered.connect(self.create_block_C)
 
-        create_D_action = QAction("Block_D", self)
+        create_D_action = QAction("F_ADD", self)
         create_D_action.triggered.connect(self.create_block_D)
 
         self.menu_blocks.addAction(create_Start_action)
@@ -225,11 +207,15 @@ class MyMain(QMainWindow):
         self.update_all()
 
     def create_block_C(self):
-        self.list_blocks.append(BlockC(self))
+        k_blocks = self.count_blocks['Block_C']
+        self.list_blocks.append(BlockC(self, f'STRING2STRING_{k_blocks}'))
+        self.count_blocks['Block_C'] += 1
         self.update_all()
 
     def create_block_D(self):
-        self.list_blocks.append(BlockD(self))
+        k_blocks = self.count_blocks['Block_D']
+        self.list_blocks.append(BlockD(self, f'F_ADD_{k_blocks}'))
+        self.count_blocks['Block_D'] += 1
         self.update_all()
 
     def contextMenuEvent(self, event):
@@ -250,8 +236,11 @@ class MyMain(QMainWindow):
 
     def delete_block(self, block):
         self.list_blocks.remove(block)
-        block.name_edit.deleteLater()
-        block.name_label.deleteLater()
+        block.editable_label.delete()
+        for rect in block.rectangles:
+            if rect.editable_label:
+                rect.editable_label.delete()
+        # block.name_label.deleteLater()
 
     def create_connections(self, connections):
         for connection in connections.findall('Connection'):
@@ -294,10 +283,18 @@ class MyMain(QMainWindow):
             for fb in fb_network.findall('FB'): # Создаём FB
                 name = fb.get('Name')
                 block_type = fb.get('Type')
-                x = int(fb.get('x')) // self.coords_coef
-                y = int(fb.get('y')) // self.coords_coef
-
-                self.list_blocks.append(self.create_block_dict[block_type](self, name=name, x=x, y=y))
+                x = int(float(fb.get('x'))) // self.coords_coef
+                y = int(float(fb.get('y'))) // self.coords_coef
+                current_fb = self.create_block_dict[block_type](self, name=name, x=x, y=y)
+                self.list_blocks.append(current_fb)
+                for parameter in fb.findall('Parameter'):
+                    name = parameter.get('Name')
+                    value = parameter.get('Value')
+                    for rect in current_fb.rectangles:
+                        if rect.editable_label:
+                            if rect.name == name:
+                                rect.value = value
+                                rect.editable_label.label.setText(rect.value)
 
             event_connections = fb_network.find('EventConnections')
             data_connections = fb_network.find('DataConnections')
@@ -306,7 +303,6 @@ class MyMain(QMainWindow):
             self.update_all()
         except:
             print("File reading error")
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

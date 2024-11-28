@@ -17,6 +17,9 @@ def create_xml(list_blocks, block_start, coords_coef):
     for block in list_blocks:
         if block is not block_start:
             fb = ET.SubElement(sub_app_network, "FB", Name=block.name, Type=block.type, Comment="", x=str(block.x * coords_coef), y=str(block.y * coords_coef))
+            for rect in block.rectangles:
+                if rect.value !=  "''":
+                    parameter = ET.SubElement(fb, "Parameter", Name=rect.name, Value=str(rect.value))
 
     event_connections = ET.SubElement(sub_app_network, "EventConnections")
     data_connections = ET.SubElement(sub_app_network, "DataConnections")
@@ -45,6 +48,9 @@ def create_xml(list_blocks, block_start, coords_coef):
     for block in list_blocks:
         if block is not block_start:
             fb = ET.SubElement(fb_network, "FB", Name=block.name, Type=block.type, Comment="", x=str(block.x * coords_coef), y=str(block.y * coords_coef))
+            for rect in block.rectangles:
+                if rect.value != "''":
+                    parameter = ET.SubElement(fb, "Parameter", Name=rect.name, Value=str(rect.value))
 
     event_connections_fb = ET.SubElement(fb_network, "EventConnections")
     data_connections_fb = ET.SubElement(fb_network, "DataConnections")
@@ -78,8 +84,11 @@ def create_xml(list_blocks, block_start, coords_coef):
         default="*.xml",
         filetypes=["*.xml"]
     )
-    # Записываем отформатированный XML в файл
-    with open(file_path, "w", encoding='utf-8') as fh:
-        fh.write(pretty_xml)
+    try:
+        # Записываем отформатированный XML в файл
+        with open(file_path, "w", encoding='utf-8') as fh:
+            fh.write(pretty_xml)
 
-    print("Отформатированный XML-файл успешно создан.")
+        print("The XML file has been successfully created")
+    except:
+        print("File saving error")
