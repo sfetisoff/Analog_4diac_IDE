@@ -3,6 +3,47 @@ from xml.dom import minidom
 from datetime import datetime
 import easygui
 
+def create_fboot(list_blocks, block_start):
+    content = []
+    content.append(f';<Request ID="2" Action="CREATE"><FB Name="EMB_RES" Type="EMB_RES" /></Request>')
+    request_id = 3
+
+    for block in list_blocks:
+        if block is not block_start:
+            content.append(f'EMB_RES;<Request ID="{request_id}" Action="CREATE"><FB Name="{block.name}" Type="{block.type}" /></Request>')
+            request_id += 1
+        for rect in block.rectangles:
+            if rect.value.isdigit():
+                content.append(f'EMB_RES;<Request ID="{request_id}" Action="WRITE"><Connection Source="{rect.value}" Destination="{block.name}.{rect.name}" /></Request>')
+                request_id += 1
+            if (rect.value.isdigit() is False) and (rect.value!="''"):
+                content.append(f'EMB_RES;<Request ID="{request_id}" Action="WRITE"><Connection Source="&apos;{rect.value[1:-1]}&apos;" Destination="{block.name}.{rect.name}" /></Request>')
+                request_id += 1
+
+    for block in list_blocks:
+        for source_el, ar_elements in block.connections.items():
+            if ar_elements:
+                for dest_block_name, dest_el in ar_elements:
+                    content.append(f'EMB_RES;<Request ID="{request_id}" Action="CREATE"><Connection Source="{block.name}.{source_el}" Destination="{dest_block_name}.{dest_el}" /></Request>')
+                    request_id += 1
+
+    content.append(f'EMB_RES;<Request ID="{request_id - 1}" Action="START"/>')
+    file_path = easygui.filesavebox(
+        title="Create fboot",
+        default="*.fboot",
+        filetypes=["*.fboot"]
+    )
+    try:
+        # Записываем отформатированный XML в файл
+        with open(file_path, "w", encoding='utf-8') as f:
+            for line in content:
+                f.write(f'{line}\n')
+
+        print("The fboot file has been successfully created")
+    except:
+        print("Fboot file creating error")
+
+
 def create_xml(list_blocks, block_start, coords_coef):
 
     # Создаем корневой элемент
@@ -80,7 +121,7 @@ def create_xml(list_blocks, block_start, coords_coef):
     pretty_xml = parsed_xml.toprettyxml(indent="    ")
 
     file_path = easygui.filesavebox(
-        title="Сохранить файл",
+        title="Save file",
         default="*.xml",
         filetypes=["*.xml"]
     )
@@ -91,4 +132,4 @@ def create_xml(list_blocks, block_start, coords_coef):
 
         print("The XML file has been successfully created")
     except:
-        print("File saving error")
+        print("XML file saving error")

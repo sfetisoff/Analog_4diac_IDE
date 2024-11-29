@@ -9,8 +9,7 @@ import xml.etree.ElementTree as ET
 import easygui
 
 from myblocks import BlockA, BlockB, BlockC, BlockD, MyBlock, BlockStart
-from xml_saving import create_xml
-
+from xml_saving import create_xml, create_fboot
 
 
 class MyMain(QMainWindow):
@@ -57,7 +56,7 @@ class MyMain(QMainWindow):
                 painter.drawRect(rect) # Рисуем блок
                 painter.drawText(rect, Qt.AlignCenter, rect.name) # Рисуем центрированный тип элемента(CNF, IN ...)
 
-        pen = QPen(Qt.red, 3)
+        pen = QPen(Qt.red, 2)
         for line in self.all_lines:
             painter.setPen(pen)  # Устанавливаем цвет линии
             painter.drawLine(line)
@@ -176,8 +175,12 @@ class MyMain(QMainWindow):
         create_xml_action = QAction("Save as XML", self)
         create_xml_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start, self.coords_coef))
 
+        create_fboot_action = QAction("Create fboot file", self)
+        create_fboot_action.triggered.connect(lambda: create_fboot(self.list_blocks, self.block_start))
+
         self.menu_file.addAction(open_project_action)
         self.menu_file.addAction(create_xml_action)
+        self.menu_file.addAction(create_fboot_action)
 
     def show_connections(self):
         for block in self.list_blocks:
