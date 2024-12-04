@@ -46,6 +46,54 @@ def create_fboot(list_blocks, block_start):
 
 def create_xml(list_blocks, block_start, coords_coef):
 
+    def find_connection(source_block, dest_block_name, source_el_name, dest_el_name):
+        for block in list_blocks:
+            if block.name == dest_block_name:
+                dest_block = block
+                break
+        for rect in source_block.rectangles:
+            if rect.name == source_el_name:
+                source_el = rect
+                break
+        for rect in dest_block.rectangles:
+            if rect.name == dest_el_name:
+                dest_el = rect
+                break
+        for connection1 in source_el.connect_lines:
+            for connection2 in dest_el.connect_lines:
+                if connection1 == connection2:
+                    return connection1
+
+    def write_connections(parent_tag_event, parent_tag_data):
+        for source_el, ar_elements in block.connections.items():
+            if ar_elements:  # Если у этого элемента есть связи
+                for dest_block_name, dest_el in ar_elements:
+                    polyline = find_connection(block, dest_block_name, source_el, dest_el)
+                    if (dest_el in data_elements) or (source_el in data_elements):
+
+                        connection = ET.SubElement(parent_tag_data, "Connection",
+                                                   Source=f"{block.name}.{source_el}",
+                                                   Destination=f"{dest_block_name}.{dest_el}",
+                                                   Comment="")
+                        if polyline.dx1:
+                            connection.set('dx1', str(polyline.dx1 * coords_coef))
+                        if polyline.dx2:
+                            connection.set('dx2', str(polyline.dx2 * coords_coef))
+                        if polyline.dy1:
+                            connection.set('dy', str(polyline.dy1 * coords_coef))
+
+                    else:
+                        connection = ET.SubElement(parent_tag_event, "Connection",
+                                                   Source=f"{block.name}.{source_el}",
+                                                   Destination=f"{dest_block_name}.{dest_el}",
+                                                   Comment="")
+                        if polyline.dx1:
+                            connection.set('dx1', str(polyline.dx1 * coords_coef))
+                        if polyline.dx2:
+                            connection.set('dx2', str(polyline.dx2 * coords_coef))
+                        if polyline.dy1:
+                            connection.set('dy', str(polyline.dy1 * coords_coef))
+
     # Создаем корневой элемент
     name_project = 'Original_project'
     date = datetime.now().strftime("%Y-%m-%d")
@@ -68,17 +116,7 @@ def create_xml(list_blocks, block_start, coords_coef):
 
     for block in list_blocks:
         if block is not block_start:
-            for source_el, ar_elements in block.connections.items():
-                if ar_elements:
-                    for dest_block_name, dest_el in ar_elements:
-                        if (dest_el in data_elements) or (source_el in data_elements):
-                            connection = ET.SubElement(data_connections, "Connection",
-                                                       Source=f"{block.name}.{source_el}",
-                                                       Destination=f"{dest_block_name}.{dest_el}", Comment="")
-                        else:
-                            connection = ET.SubElement(event_connections, "Connection",
-                                                       Source=f"{block.name}.{source_el}",
-                                                       Destination=f"{dest_block_name}.{dest_el}", Comment="")
+            write_connections(event_connections, data_connections)
 
     device = ET.SubElement(root, "Device", Name="FORTE_PC", Type="FORTE_PC", Comment="", x="693.3333333333334", y="653.3333333333334")
     parameter_device = ET.SubElement(device, "Parameter", Name="MGR_ID", Value='"localhost:61499"')
@@ -97,17 +135,7 @@ def create_xml(list_blocks, block_start, coords_coef):
     data_connections_fb = ET.SubElement(fb_network, "DataConnections")
 
     for block in list_blocks:
-        for source_el, ar_elements in block.connections.items():
-            if ar_elements:
-                for dest_block_name, dest_el in ar_elements:
-                    if (dest_el in data_elements) or (source_el in data_elements):
-                        connection = ET.SubElement(data_connections_fb, "Connection",
-                                                   Source=f"{block.name}.{source_el}",
-                                                   Destination=f"{dest_block_name}.{dest_el}", Comment="")
-                    else:
-                        connection = ET.SubElement(event_connections_fb, "Connection",
-                                                   Source=f"{block.name}.{source_el}",
-                                                   Destination=f"{dest_block_name}.{dest_el}", Comment="")
+        write_connections(event_connections_fb, data_connections_fb)
 
     segment = ET.SubElement(root, "Segment", Name="Ethernet", Type="Ethernet", Comment="", x="1733.3333333333335", y="1600.0", dx1="2000.0")
     attribute_segment = ET.SubElement(segment, "Attribute", Name="Color", Type="STRING", Value="161,130,236", Comment="color")

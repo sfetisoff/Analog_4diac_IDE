@@ -1,5 +1,4 @@
-from PyQt5.QtCore import QRect, QPoint, Qt
-from PyQt5.QtWidgets import QLabel, QLineEdit
+from PyQt5.QtCore import QRect, QPoint
 
 from editable_label import EditableLabel
 
@@ -46,7 +45,7 @@ class MyBlock:
         self.create_rect_values()
 
     def create_label(self):
-        self.label_width = self.width
+        self.label_width = self.width + self.width // 2
         self.label_height = 20
         self.label_x = self.x + (self.width - self.label_width) // 2
         self.label_y = self.y - 25
@@ -73,7 +72,6 @@ class MyBlock:
     def create_rect(self):
         self.rectangles.append(MyRect(self.x, self.y, self.width, self.height,
                                       name=self.type, parent=self))
-        # cell_x_left = self.x
         cell_x_left = self.x - self.cell_width
         for cur_rect in range(self.n_rects_left):
             new_y = int(self.y + (self.height / self.n_rects_left) * cur_rect)
@@ -82,7 +80,6 @@ class MyBlock:
             new_rect.is_left = True
             self.rectangles.append(new_rect)
 
-        # cell_x_right = self.x + int(self.width * 0.75)
         cell_x_right = self.x + self.width
         for cur_rect in range(self.n_rects_right):
             new_y = int(self.y + (self.height / self.n_rects_right) * cur_rect)
@@ -99,8 +96,12 @@ class MyBlock:
                     if rect.is_left: #Проверка прямоугольник источник сигнала или приёмник
                         if polyline.simple:
                             if polyline.source_x + 40 < polyline.destination_x:
-                                polyline.simple_case(dx1=polyline.dx1,
-                                                     destination=QPoint(rect.left() - 1, rect.center().y()))
+                                if polyline.dx1 > rect.left() - polyline.source_x - 20:
+                                    polyline.simple_case(dx1=rect.left() - polyline.source_x - 20,
+                                                         destination=QPoint(rect.left() - 1, rect.center().y()))
+                                else:
+                                    polyline.simple_case(dx1=polyline.dx1,
+                                                         destination=QPoint(rect.left() - 1, rect.center().y()))
                             else:
                                 polyline.hard_case()
                         else:
@@ -114,8 +115,12 @@ class MyBlock:
                     else:
                         if polyline.simple:
                             if polyline.source_x + 40 < polyline.destination_x:
-                                polyline.simple_case(dx1=polyline.dx1,
-                                                     source=QPoint(rect.right() + 1, rect.center().y()))
+                                if polyline.dx1 > polyline.destination_x - rect.right() - 20:
+                                    polyline.simple_case(dx1=polyline.destination_x - rect.right() - 20,
+                                                         source=QPoint(rect.right() + 1, rect.center().y()))
+                                else:
+                                    polyline.simple_case(dx1=polyline.dx1,
+                                                         source=QPoint(rect.right() + 1, rect.center().y()))
                             else:
                                 polyline.hard_case()
                         else:
@@ -131,30 +136,30 @@ class MyBlock:
 
 
 class BlockStart(MyBlock):
-    def __init__(self, main_window, name='E_RESTART', x=50, y=20):
+    def __init__(self, main_window, name='E_RESTART', x=50, y=100):
         super().__init__(main_window, name=name, width=60, height=80, x=x, y=y,
                          n_rects_left=1, n_rects_right=2, labels=['E_RESTART', 'STOP', 'COLD', 'WARM'])
 
 
 class BlockA(MyBlock): # INT2INT
     def __init__(self, main_window, name='INT2INT', x=300, y=300):
-        super().__init__(main_window, name=name, width=75, height=102, x=x, y=y,
+        super().__init__(main_window, name=name, width=60, height=82, x=x, y=y,
                          n_rects_left=2, n_rects_right=2, labels=['INT2INT', 'REQ', 'IN', 'CNF', 'OUT'])
 
 
 class BlockB(MyBlock): #OUT_ANY_CONSOLE
     def __init__(self, main_window, name='OUT_ANY_CONSOLE',x=300,y=300):
-        super().__init__(main_window, name=name, width=115, height=140, x=x, y=y,
+        super().__init__(main_window, name=name, width=92, height=112, x=x, y=y,
                          n_rects_left=4, n_rects_right=2, labels=['OUT_ANY_CONSOLE','REQ','QI','LABEL','IN','CNF','QO'])
 
 
 class BlockC(MyBlock):
     def __init__(self, main_window, name='STRING2STRING', x=300, y=300):
-        super().__init__(main_window, name=name, x=x, y=y, width=105, height=102,
+        super().__init__(main_window, name=name, x=x, y=y, width=84, height=82,
                          n_rects_left=2, n_rects_right=2, labels=['STRING2STRING', 'REQ', 'IN', 'CNF', 'OUT'])
 
 
 class BlockD(MyBlock):
     def __init__(self, main_window, name='F_ADD', x=300, y=300):
-        super().__init__(main_window, name=name, width=63, height=120, x=x, y=y,
+        super().__init__(main_window, name=name, width=50, height=96, x=x, y=y,
                          n_rects_left=3, n_rects_right=2, labels=['F_ADD', 'REQ', 'IN1', 'IN2', 'CNF', 'OUT'])

@@ -10,7 +10,7 @@ class EditableLabel:
         self.field = field
 
         self.label = QLabel(text, main_window)
-        font = QFont("Arial", 8)
+        font = QFont("Arial", 7)
         self.label.setFont(font)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setGeometry(x, y, width, height)
@@ -52,5 +52,7 @@ class EditableLabel:
             self.rect.value = self.line_edit.text()
 
     def delete(self):
+        self.label.hide()
+        self.line_edit.hide()
         self.label.deleteLater()
         self.line_edit.deleteLater()

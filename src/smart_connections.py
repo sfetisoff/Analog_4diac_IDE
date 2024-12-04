@@ -1,11 +1,11 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QMainWindow
-from PyQt5.QtGui import QPainter, QColor, QPen, QCursor, QPolygon
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtGui import QPainter, QPen, QCursor, QPolygon
 from PyQt5.QtCore import Qt, QLine, QPoint, QRect
 
 
-class Connection():
-    def __init__(self, point_source, point_destination, color='red', dx1=None, dx2=None, dy1=None):
+class Connection:
+    def __init__(self, point_source, point_destination, color='black'):
         self.point_source = point_source
         self.point_destination = point_destination
         self.color = color
@@ -16,11 +16,15 @@ class Connection():
         self.destination_y = point_destination.y()
         self.draw_triangle()
         if self.source_x < self.destination_x:
-                self.simple_case()
+            self.simple = True
+            self.simple_case()
         else:
+            self.simple = False
             self.hard_case()
 
     def simple_case(self, dx1=None, source=None, destination=None):
+        self.dy1 = None
+        self.dx2 = None
         if source:
             self.point_source = source
             self.source_x = self.point_source.x()
@@ -42,7 +46,6 @@ class Connection():
         point2 = QPoint(self.x2, self.y1)
         point3 = QPoint(self.x2, self.y2)
         point4 = QPoint(self.x3, self.y2)
-        self.points = [point1, point2, point3, point4]
         self.rect_line2 = QRect(QPoint(self.x2 - 5, self.y1 - 5), QPoint(self.x2 + 5, self.y2 + 5))
         self.rect_line3 = QRect()
         self.rect_line4 = QRect()
@@ -68,13 +71,13 @@ class Connection():
         if dy1:
             self.dy1 = dy1
         else:
-            self.dy1 = (self.source_y - self.destination_y) // 2
+            self.dy1 = (self.destination_y - self.source_y) // 2
         self.x1 = self.source_x
         self.x2 = self.x1 + self.dx1
         self.x3 = self.destination_x - self.dx2
         self.x4 = self.destination_x
         self.y1 = self.source_y
-        self.y2 = self.y1 - self.dy1
+        self.y2 = self.y1 + self.dy1
         self.y3 = self.destination_y
         point1 = QPoint(self.x1, self.y1)
         point2 = QPoint(self.x2, self.y1)
@@ -82,7 +85,6 @@ class Connection():
         point4 = QPoint(self.x3, self.y2)
         point5 = QPoint(self.x3, self.y3)
         point6 = QPoint(self.x4, self.y3)
-        self.points = [point1, point2, point3, point4, point5, point6]
         self.rect_line2 = QRect(QPoint(self.x2 - 5, self.y1), QPoint(self.x2 + 5, self.y2))
         self.rect_line3 = QRect(QPoint(self.x3, self.y2 - 5), QPoint(self.x2, self.y2 + 5))
         self.rect_line4 = QRect(QPoint(self.x3 - 5, self.y3), QPoint(self.x3 + 5, self.y2))
@@ -121,11 +123,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setGeometry(100, 100, 600, 600)
         self.setMouseTracking(True)
-        self.polylines_array = []
+        self.polylines_list = []
         self.current_connection = None
         # self.test_connection = connection(QPoint(300,150), QPoint(100,300))
         self.drawing = False
-        self.moving_lines = False
         self.movable_polyline = None
 
     def paintEvent(self, event):
@@ -134,7 +135,7 @@ class MainWindow(QMainWindow):
         painter.setPen(pen)
         painter.setBrush(Qt.black)
 
-        for polyline in self.polylines_array:
+        for polyline in self.polylines_list:
             for line in polyline.line_array:
                 painter.drawLine(line)
             painter.drawPolygon(polyline.triangle)
@@ -147,19 +148,17 @@ class MainWindow(QMainWindow):
         if self.movable_polyline is None:
             self.current_connection = Connection(QPoint(self.current_x, self.current_y),
                                                  QPoint(self.current_x + 1, self.current_y + 2))
-            self.polylines_array.append(self.current_connection)
+            self.polylines_list.append(self.current_connection)
             self.drawing = True  # Установить состояние рисования
-            print('Нажато')
+
 
     def mouseReleaseEvent(self, event):
         self.current_connection = None
-        self.moving_lines = False
         self.drawing = False  # Сбросить состояние рисования
         x = event.x()
         y = event.y()
         self.movable_polyline = None
-        print('Отпущено')
-        print(self.polylines_array)
+
         self.update()
 
     def mouseMoveEvent(self, event):
@@ -167,7 +166,7 @@ class MainWindow(QMainWindow):
         self.current_y = event.y()
 
         if self.drawing:
-            print('Удерживается')
+
             self.current_connection.change_coords(event)
         else:
             self.check_moving_connect(event)
@@ -175,19 +174,19 @@ class MainWindow(QMainWindow):
         self.update()
 
     def check_moving_connect(self, event):
-        for polyline in self.polylines_array:
+        for polyline in self.polylines_list:
             if polyline.rect_line2.contains(event.x(), event.y()):
                 self.setCursor(QCursor(Qt.SizeHorCursor))
-                return (polyline, 'dx1')
+                return polyline, 'dx1'
             elif polyline.rect_line3.contains(event.x(), event.y()):
                 self.setCursor(QCursor(Qt.SizeVerCursor))
-                return (polyline, 'dy1')
+                return polyline, 'dy1'
             elif polyline.rect_line4.contains(event.x(), event.y()):
                 self.setCursor(QCursor(Qt.SizeHorCursor))
-                return (polyline, 'dx2')
+                return polyline, 'dx2'
             else:
                 self.unsetCursor()
-        return (None, None)
+        return None, None
 
     def change_movable_polyline(self, event):
         if self.movable_polyline:
@@ -202,7 +201,7 @@ class MainWindow(QMainWindow):
                 elif self.coord == 'dy1':
                     self.movable_polyline.hard_case(dx1=self.movable_polyline.dx1,
                                                     dx2=self.movable_polyline.dx2,
-                                                    dy1=self.movable_polyline.y1 - event.y())
+                                                    dy1=event.y() - self.movable_polyline.y1)
                 elif (self.coord == 'dx2') and (self.movable_polyline.x4 - event.x() > 10):
                     self.movable_polyline.hard_case(dx1=self.movable_polyline.dx1,
                                                     dx2=self.movable_polyline.x4 - event.x(),

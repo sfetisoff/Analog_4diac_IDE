@@ -1,13 +1,13 @@
 import sys
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QMessageBox, QLabel, QPushButton, QLineEdit
-from PyQt5.QtGui import QPainter, QColor, QPen, QCursor, QFont
-from PyQt5.QtCore import QRect, QLine, Qt, QPoint
+from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QLabel, QPushButton
+from PyQt5.QtGui import QPainter, QColor, QPen, QCursor, QFont, QBrush
+from PyQt5.QtCore import Qt, QPoint
 import xml.etree.ElementTree as ET
 
 import easygui
 
-from myblocks import BlockA, BlockB, BlockC, BlockD, MyBlock, BlockStart
+from myblocks import BlockA, BlockB, BlockC, BlockD, BlockStart
 from xml_saving import create_xml, create_fboot
 from smart_connections import Connection
 
@@ -20,27 +20,25 @@ class MyMain(QMainWindow):
         self.list_blocks = []  # Список со всеми блоками
         self.block_start = None
         self.label = QLabel("Нажмите и двигайте мышь", self)
-        self.label.setGeometry(50, 50, 300, 50)
+        self.label.setGeometry(10, 10, 300, 50)
         # Хранение координат для рисования
         self.current_x = 300
         self.current_y = 300
-        self.coords_coef = 6  # Масштабирование координат для совместимости с 4diac
+        self.coords_coef = 5  # Масштабирование координат для совместимости с 4diac
         self.pressed = False  # Состояние рисования
-        self.connecting = False  # Если True - выбран прямоугольник для связи
-        self.all_lines = []  # Все линии связи
-        self.current_line = None
+        self.current_block = None
         self.menu_file = self.menuBar().addMenu("File")
         self.menu_blocks = self.menuBar().addMenu("Select a block")
         self.setMouseTracking(True)
-        self.rect_start_connect = None  # Прямоугольник, из которого начали строить связь
+        self.source_element = None  # Прямоугольник, из которого начали строить связь
+        self.destination_element = None
         self.count_blocks = {'Block_A': 1, 'Block_B': 1, 'Block_C': 1, 'Block_D': 1}
         self.create_block_dict = {'E_RESTART': BlockStart,
                                   'INT2INT': BlockA,
                                   'OUT_ANY_CONSOLE': BlockB,
                                   'STRING2STRING': BlockC,
                                   'F_ADD': BlockD}
-        self.polylines_array = []
-        self.moving_lines = False
+        self.polylines_list = []
         self.movable_polyline = None
         self.drawing_connection = False
         self.create_actions()
@@ -52,22 +50,31 @@ class MyMain(QMainWindow):
 
     def paintEvent(self, event):
         painter = QPainter(self)
+        font = QFont("Arial", 7)
+        painter.setFont(font)
         for block in self.list_blocks:
             painter.setBrush(QColor(block.color))
             for rect in block.rectangles:
                 painter.drawRect(rect)  # Рисуем блок
-                font = QFont("Arial", 8)
-                painter.setFont(font)
                 painter.drawText(rect, Qt.AlignCenter, rect.name)  # Рисуем центрированный тип элемента(CNF, IN ...)
 
         pen1 = QPen(Qt.red, 1)
         pen2 = QPen(Qt.blue, 1)
-        painter.setPen(pen1)
-        for polyline in self.polylines_array:
+        pen3 = QPen(Qt.black, 1)
+        brush1 = QBrush(Qt.red)
+        brush2 = QBrush(Qt.blue)
+        brush3 = QBrush(Qt.black)
+
+        for polyline in self.polylines_list:
             if polyline.color == 'red':
                 painter.setPen(pen1)
-            else:
+                painter.setBrush(brush1)
+            elif polyline.color == 'blue':
                 painter.setPen(pen2)
+                painter.setBrush(brush2)
+            else:
+                painter.setPen(pen3)
+                painter.setBrush(brush3)
             for line in polyline.line_array:
                 painter.drawLine(line)
             painter.drawPolygon(polyline.triangle)
@@ -112,15 +119,17 @@ class MyMain(QMainWindow):
             self.current_block = self.find_block()  # Проверка на нажатие на блок, который можно перемещать
             if self.current_block:
                 self.current_block.change_coords(self.current_x, self.current_y)
-                self.update_all()  # Запрос на перерисовку виджета
+
             elif self.source_element:  # Проверка, выбрали ли мы один из входов/выходов для связей
                 self.current_connection = Connection(QPoint(self.source_element.right() + 1,
                                                             self.source_element.center().y()),
                                                      QPoint(self.current_x + 1,
                                                             self.current_y + 2))
-                self.polylines_array.append(self.current_connection)
+
+                self.polylines_list.append(self.current_connection)
                 self.drawing_connection = True
         self.pressed = True  # Установить состояние нажатия
+        self.update_all()  # Запрос на перерисовку виджета
 
     def mouseReleaseEvent(self, event):
         self.current_x = event.x()
@@ -142,10 +151,12 @@ class MyMain(QMainWindow):
                     (self.destination_element.parent.name, self.destination_element.name))
                 if (self.source_element.data_element or self.destination_element.data_element):
                     self.current_connection.color = 'blue'
+                else:
+                    self.current_connection.color = 'red'
                 self.source_element.connect_lines.append(self.current_connection)
                 self.destination_element.connect_lines.append(self.current_connection)
             else:
-                self.polylines_array.pop(-1)
+                self.polylines_list.pop(-1)
 
         self.current_block = None
         self.current_connection = None
@@ -188,14 +199,14 @@ class MyMain(QMainWindow):
                 elif self.coord == 'dy1':
                     self.movable_polyline.hard_case(dx1=self.movable_polyline.dx1,
                                                     dx2=self.movable_polyline.dx2,
-                                                    dy1=self.movable_polyline.y1 - event.y())
+                                                    dy1=event.y() - self.movable_polyline.y1 )
                 elif (self.coord == 'dx2') and (self.movable_polyline.x4 - event.x() > 10):
                     self.movable_polyline.hard_case(dx1=self.movable_polyline.dx1,
                                                     dx2=self.movable_polyline.x4 - event.x(),
                                                     dy1=self.movable_polyline.dy1)
 
     def check_moving_connect(self, event):
-        for polyline in self.polylines_array:
+        for polyline in self.polylines_list:
             if polyline.rect_line2.contains(event.x(), event.y()):
                 self.setCursor(QCursor(Qt.SizeHorCursor))
                 return (polyline, 'dx1')
@@ -210,9 +221,9 @@ class MyMain(QMainWindow):
         return (None, None)
 
     def create_actions(self):
-        self.button = QPushButton('Показать словарь связей', self)
-        self.button.setGeometry(50, 40, 200, 30)  # x, y, ширина, высота
-        self.button.clicked.connect(self.show_connections)
+        # self.button = QPushButton('Показать словарь связей', self)
+        # self.button.setGeometry(50, 40, 200, 30)  # x, y, ширина, высота
+        # self.button.clicked.connect(self.show_connections)
 
         create_Start_action = QAction("START", self)
         create_Start_action.triggered.connect(self.create_block_Start)
@@ -287,29 +298,63 @@ class MyMain(QMainWindow):
         self.update_all()
 
     def contextMenuEvent(self, event):
-        for block in self.list_blocks:
-            # rectangles[0], потому что там находится прямоугольник - основа блока
-            if block.rectangles[0].contains(self.current_x, self.current_y):
-                context_menu = QMenu(self)
+        cur_polyline, text = self.check_moving_connect(event)
+        if cur_polyline:
+            line_context_menu = QMenu(self)
+            action = QAction("Delete connection", self)
+            action.triggered.connect(lambda: self.delete_connection(cur_polyline))
+            line_context_menu.addAction(action)
+            line_context_menu.exec_(event.globalPos())
+        else:
+            for block in self.list_blocks:
+                # rectangles[0], потому что там находится прямоугольник - основа блока
+                if block.rectangles[0].contains(self.current_x, self.current_y):
+                    context_menu = QMenu(self)
 
-                # Добавляем действия в контекстное меню
-                action1 = QAction("Удалить", self)
-                action1.triggered.connect(lambda: self.delete_block(block))
-                context_menu.addAction(action1)
+                    # Добавляем действия в контекстное меню
+                    action1 = QAction("Delete block", self)
+                    action1.triggered.connect(lambda: self.delete_block(block))
+                    context_menu.addAction(action1)
 
-                # Отображаем контекстное меню
-                context_menu.exec_(event.globalPos())
+                    # Отображаем контекстное меню
+                    context_menu.exec_(event.globalPos())
+        self.update_all()
+
+    def clear(self):
+        while self.list_blocks:
+            self.delete_block(self.list_blocks[0])
+        self.polylines_list = []
+        self.list_blocks = []
+        self.pressed = False
         self.update_all()
 
     def delete_block(self, block):
-        self.list_blocks.remove(block)
-        block.editable_label.delete()
         for rect in block.rectangles:
             if rect.editable_label:
                 rect.editable_label.delete()
-        # block.name_label.deleteLater()
+            while rect.connect_lines:
+                self.delete_connection(rect.connect_lines[0])
 
-    def create_connections(self, connections):
+        self.list_blocks.remove(block)
+        block.editable_label.delete()
+
+    def delete_connection(self, cur_polyline):
+        for block in self.list_blocks:
+            for rect in block.rectangles[1:]:
+                for connection in rect.connect_lines:
+                    if connection == cur_polyline:
+                        if rect.is_left:
+                            dest_el = rect
+                        else:
+                            source_el = rect
+
+        source_el.parent.connections[source_el.name].remove((dest_el.parent.name, dest_el.name))
+        source_el.connect_lines.remove(cur_polyline)
+        dest_el.connect_lines.remove(cur_polyline)
+        self.polylines_list.remove(cur_polyline)
+        self.unsetCursor()
+
+    def create_connections(self, connections, color):
         for connection in connections.findall('Connection'):
             source = connection.get('Source')
             destination = connection.get('Destination')
@@ -337,7 +382,7 @@ class MyMain(QMainWindow):
 
             self.current_connection = Connection(
                 QPoint(self.source_element.right() + 1, self.source_element.center().y()),
-                QPoint(self.destination_element.left() - 1, self.destination_element.center().y()))
+                QPoint(self.destination_element.left() - 1, self.destination_element.center().y()), color=color)
             if self.current_connection.simple:
                 self.current_connection.simple_case(dx1=dx1)
             else:
@@ -346,11 +391,14 @@ class MyMain(QMainWindow):
             self.source_element.connect_lines.append(self.current_connection)
             self.source_element.parent.connections[self.source_element.name].append(
                 (self.destination_element.parent.name, self.destination_element.name))
-            self.polylines_array.append(self.current_connection)
+            self.polylines_list.append(self.current_connection)
             self.current_connections = None
+
+
 
     def read_xml(self):
         try:
+            self.clear()
             input_file = easygui.fileopenbox(filetypes=["*.xml"])
             tree = ET.parse(input_file)
             root = tree.getroot()
@@ -377,11 +425,12 @@ class MyMain(QMainWindow):
 
             event_connections = fb_network.find('EventConnections')
             data_connections = fb_network.find('DataConnections')
-            self.create_connections(event_connections)
-            self.create_connections(data_connections)
+            self.create_connections(event_connections, 'red')
+            self.create_connections(data_connections, 'blue')
             self.update_all()
-        except:
+        except Exception as e:
             print("File reading error")
+            print(e)
 
 
 if __name__ == "__main__":
