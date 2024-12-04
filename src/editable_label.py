@@ -1,5 +1,6 @@
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QMainWindow
+from PyQt5.QtGui import QFont
 
 class EditableLabel:
     def __init__(self, main_window, block=None, rect=None, field='',text="", x=0, y=0, width=100, height=30):
@@ -9,6 +10,8 @@ class EditableLabel:
         self.field = field
 
         self.label = QLabel(text, main_window)
+        font = QFont("Arial", 8)
+        self.label.setFont(font)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setGeometry(x, y, width, height)
         #self.label.setStyleSheet("border: 1px solid black; padding: 5px;")
@@ -16,6 +19,7 @@ class EditableLabel:
         self.label.show()
 
         self.line_edit = QLineEdit(main_window)
+        self.line_edit.setFont(font)
         self.line_edit.setAlignment(Qt.AlignCenter)
         self.line_edit.setGeometry(x, y, width, height)
         self.line_edit.setVisible(False)
