@@ -8,8 +8,9 @@ import xml.etree.ElementTree as ET
 import easygui
 
 from myblocks import BlockA, BlockB, BlockC, BlockD, BlockStart
-from xml_saving import create_xml, create_fboot
+from saving import create_xml, create_fboot
 from smart_connections import Connection
+from fbt_sending import TcpFileSender
 
 
 class MyMain(QMainWindow):
@@ -19,6 +20,7 @@ class MyMain(QMainWindow):
         self.setGeometry(100, 100, 800, 600)  # Установка размера окна
         self.list_blocks = []  # Список со всеми блоками
         self.block_start = None
+        self.file_path = '../project_files/project1.xml'
         self.label = QLabel("Нажмите и двигайте мышь", self)
         self.label.setGeometry(10, 10, 300, 50)
         # Хранение координат для рисования
@@ -29,6 +31,7 @@ class MyMain(QMainWindow):
         self.current_block = None
         self.menu_file = self.menuBar().addMenu("File")
         self.menu_blocks = self.menuBar().addMenu("Select a block")
+        self.menu_run = self.menuBar().addMenu('Run')
         self.setMouseTracking(True)
         self.source_element = None  # Прямоугольник, из которого начали строить связь
         self.destination_element = None
@@ -249,6 +252,11 @@ class MyMain(QMainWindow):
         open_project_action = QAction("Open", self)
         open_project_action.triggered.connect(self.read_xml)
 
+        save_action = QAction("Save", self)
+        save_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start,
+                                                         self.coords_coef, with_gui=False,
+                                                         old_file_path=self.file_path))
+
         create_xml_action = QAction("Save as XML", self)
         create_xml_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start, self.coords_coef))
 
@@ -256,8 +264,17 @@ class MyMain(QMainWindow):
         create_fboot_action.triggered.connect(lambda: create_fboot(self.list_blocks, self.block_start))
 
         self.menu_file.addAction(open_project_action)
+        self.menu_file.addAction(save_action)
         self.menu_file.addAction(create_xml_action)
         self.menu_file.addAction(create_fboot_action)
+
+        deploy_action = QAction('Deploy', self)
+        deploy_action.triggered.connect(self.deploy)
+        self.menu_run.addAction(deploy_action)
+
+    def deploy(self):
+        create_fboot(self.list_blocks, self.block_start, with_gui=False)
+        TcpFileSender('../project_files/deploy.fboot')
 
     def show_connections(self):
         for block in self.list_blocks:
@@ -400,6 +417,7 @@ class MyMain(QMainWindow):
         try:
             self.clear()
             input_file = easygui.fileopenbox(filetypes=["*.xml"])
+            self.file_path = input_file
             tree = ET.parse(input_file)
             root = tree.getroot()
             device = root.find('Device')

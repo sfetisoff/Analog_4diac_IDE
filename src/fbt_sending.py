@@ -4,10 +4,14 @@ import struct
 
 
 class TcpFileSender():
-    def __init__(self, file_name):
+    def __init__(self, file_path):
         # Создание сокета
-        self.file_name = file_name
+        self.file_path = file_path
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.set_connection()
+        self.send_fboot()
+        self.disconnect()
 
     def set_connection(self):
         # Подключение к серверу
@@ -20,10 +24,11 @@ class TcpFileSender():
 
     def send_fboot(self):
         # Чтение fboot файла
-        parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        file_path = os.path.join(parent_dir, self.file_name)
-        print("File path:", file_path)
-        file = open(file_path, 'r')
+        # parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        # file_path = os.path.join(parent_dir, self.file_path)
+        
+        print("File path:", self.file_path)
+        file = open(self.file_path, 'r')
 
         while True:
             message = file.readline()[:-1]
@@ -54,7 +59,7 @@ class TcpFileSender():
 
 
 if __name__ == '__main__':
-    tcp_file_sender = TcpFileSender('k.fboot')
-    tcp_file_sender.set_connection()
-    tcp_file_sender.send_fboot()
-    tcp_file_sender.disconnect()
+    tcp_file_sender = TcpFileSender('../k.fboot')
+    # tcp_file_sender.set_connection()
+    # tcp_file_sender.send_fboot()
+    # tcp_file_sender.disconnect()
