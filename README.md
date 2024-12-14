@@ -10,7 +10,7 @@ To install dependencies for client in cmd inside Pycharm from the project folder
 ## Usage
 After start you can see a main window of IDE.
 
-## Suport
+## Support
 
 ## Authors
 sfetisoff, DAKudryashev
