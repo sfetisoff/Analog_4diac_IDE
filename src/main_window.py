@@ -1,17 +1,14 @@
 import sys
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QLabel, QPushButton
+from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QMenu, QLabel
 from PyQt5.QtGui import QPainter, QColor, QPen, QCursor, QFont, QBrush
 from PyQt5.QtCore import Qt, QPoint
-import xml.etree.ElementTree as ET
 
-import easygui
-
-from myblocks import BlockA, BlockB, BlockC, BlockD, BlockStart
+import custom_blocks as cb
 from saving import create_xml, create_fboot
 from smart_connections import Connection
 from fbt_sending import TcpFileSender
-
+import loading
 
 class MyMain(QMainWindow):
     def __init__(self):
@@ -27,7 +24,7 @@ class MyMain(QMainWindow):
         self.current_x = 300
         self.current_y = 300
         self.coords_coef = 5  # Масштабирование координат для совместимости с 4diac
-        self.pressed = False  # Состояние рисования
+        self.pressed = False  # Состояние нажатия
         self.current_block = None
         self.menu_file = self.menuBar().addMenu("File")
         self.menu_blocks = self.menuBar().addMenu("Select a block")
@@ -35,12 +32,9 @@ class MyMain(QMainWindow):
         self.setMouseTracking(True)
         self.source_element = None  # Прямоугольник, из которого начали строить связь
         self.destination_element = None
-        self.count_blocks = {'Block_A': 1, 'Block_B': 1, 'Block_C': 1, 'Block_D': 1}
-        self.create_block_dict = {'E_RESTART': BlockStart,
-                                  'INT2INT': BlockA,
-                                  'OUT_ANY_CONSOLE': BlockB,
-                                  'STRING2STRING': BlockC,
-                                  'F_ADD': BlockD}
+        self.count_blocks = cb.count_blocks()
+
+        self.create_block_dict = cb.all_block_classes()
         self.polylines_list = []
         self.movable_polyline = None
         self.drawing_connection = False
@@ -115,7 +109,7 @@ class MyMain(QMainWindow):
         self.label.setText(f"Нажато в ({self.current_x}, {self.current_y})")
 
         self.movable_polyline, self.coord = self.check_moving_connect(event)  # Проверка нажали ли мы на соединение
-        # self.find_connection_rect()  # Проверка, выбрали ли мы один из входов/выходов для связей
+
         self.source_element = self.find_connect_element(is_left_flag=False)
 
         if self.movable_polyline is None:
@@ -224,9 +218,6 @@ class MyMain(QMainWindow):
         return (None, None)
 
     def create_actions(self):
-        # self.button = QPushButton('Показать словарь связей', self)
-        # self.button.setGeometry(50, 40, 200, 30)  # x, y, ширина, высота
-        # self.button.clicked.connect(self.show_connections)
 
         create_Start_action = QAction("START", self)
         create_Start_action.triggered.connect(self.create_block_Start)
@@ -250,7 +241,7 @@ class MyMain(QMainWindow):
         self.menu_blocks.addAction(create_D_action)
 
         open_project_action = QAction("Open", self)
-        open_project_action.triggered.connect(self.read_xml)
+        open_project_action.triggered.connect(lambda: loading.read_xml(self))
 
         save_action = QAction("Save", self)
         save_action.triggered.connect(lambda: create_xml(self.list_blocks, self.block_start,
@@ -286,31 +277,31 @@ class MyMain(QMainWindow):
                               f"Destination = {dest_block_name}.{dest_el}, Comment = ")
 
     def create_block_Start(self):
-        self.block_start = BlockStart(self, 'START')
+        self.block_start = cb.BlockStart(self, 'START')
         self.list_blocks.append(self.block_start)
         self.update_all()
 
     def create_block_A(self):  # INT2INT
         k_blocks = self.count_blocks['Block_A']  # Сколько блоков такого типа уже есть
-        self.list_blocks.append(BlockA(self, f'INT2INT_{k_blocks}'))
+        self.list_blocks.append(cb.BlockA(self, f'INT2INT_{k_blocks}'))
         self.count_blocks['Block_A'] += 1
         self.update_all()
 
     def create_block_B(self):
         k_blocks = self.count_blocks['Block_B']  # Сколько блоков такого типа уже есть
-        self.list_blocks.append(BlockB(self, f'OUT_ANY_CONSOLE_{k_blocks}'))
+        self.list_blocks.append(cb.BlockB(self, f'OUT_ANY_CONSOLE_{k_blocks}'))
         self.count_blocks['Block_B'] += 1
         self.update_all()
 
     def create_block_C(self):
         k_blocks = self.count_blocks['Block_C']
-        self.list_blocks.append(BlockC(self, f'STRING2STRING_{k_blocks}'))
+        self.list_blocks.append(cb.BlockC(self, f'STRING2STRING_{k_blocks}'))
         self.count_blocks['Block_C'] += 1
         self.update_all()
 
     def create_block_D(self):
         k_blocks = self.count_blocks['Block_D']
-        self.list_blocks.append(BlockD(self, f'F_ADD_{k_blocks}'))
+        self.list_blocks.append(cb.BlockD(self, f'F_ADD_{k_blocks}'))
         self.count_blocks['Block_D'] += 1
         self.update_all()
 
@@ -370,85 +361,6 @@ class MyMain(QMainWindow):
         dest_el.connect_lines.remove(cur_polyline)
         self.polylines_list.remove(cur_polyline)
         self.unsetCursor()
-
-    def create_connections(self, connections, color):
-        for connection in connections.findall('Connection'):
-            source = connection.get('Source')
-            destination = connection.get('Destination')
-            name_source, source_element = source.split('.')
-            name_dest, dest_element = destination.split('.')
-            dx1 = connection.get('dx1')
-            dx2 = connection.get('dx2')
-            dy1 = connection.get('dy')
-            if dx1:
-                dx1 = int(float(dx1) / self.coords_coef)
-            if dx2:
-                dx2 = int(float(dx2) / self.coords_coef)
-            if dy1:
-                dy1 = int(float(dy1) / self.coords_coef)
-
-            for block in self.list_blocks:
-                if block.name == name_source:
-                    for rect in block.rectangles[1:]:
-                        if rect.name == source_element:
-                            self.source_element = rect
-                if block.name == name_dest:
-                    for rect in block.rectangles[1:]:
-                        if rect.name == dest_element:
-                            self.destination_element = rect
-
-            self.current_connection = Connection(
-                QPoint(self.source_element.right() + 1, self.source_element.center().y()),
-                QPoint(self.destination_element.left() - 1, self.destination_element.center().y()), color=color)
-            if self.current_connection.simple:
-                self.current_connection.simple_case(dx1=dx1)
-            else:
-                self.current_connection.hard_case(dx1=dx1, dx2=dx2, dy1=dy1)
-            self.destination_element.connect_lines.append(self.current_connection)
-            self.source_element.connect_lines.append(self.current_connection)
-            self.source_element.parent.connections[self.source_element.name].append(
-                (self.destination_element.parent.name, self.destination_element.name))
-            self.polylines_list.append(self.current_connection)
-            self.current_connections = None
-
-
-
-    def read_xml(self):
-        try:
-            self.clear()
-            input_file = easygui.fileopenbox(filetypes=["*.xml"])
-            self.file_path = input_file
-            tree = ET.parse(input_file)
-            root = tree.getroot()
-            device = root.find('Device')
-            resource = device.find('Resource')
-            fb_network = resource.find('FBNetwork')
-            self.create_block_Start()
-
-            for fb in fb_network.findall('FB'):  # Создаём FB
-                name = fb.get('Name')
-                block_type = fb.get('Type')
-                x = int(float(fb.get('x')) / self.coords_coef)
-                y = int(float(fb.get('y')) / self.coords_coef)
-                current_fb = self.create_block_dict[block_type](self, name=name, x=x, y=y)
-                self.list_blocks.append(current_fb)
-                for parameter in fb.findall('Parameter'):
-                    name = parameter.get('Name')
-                    value = parameter.get('Value')
-                    for rect in current_fb.rectangles:
-                        if rect.editable_label:
-                            if rect.name == name:
-                                rect.value = value
-                                rect.editable_label.label.setText(rect.value)
-
-            event_connections = fb_network.find('EventConnections')
-            data_connections = fb_network.find('DataConnections')
-            self.create_connections(event_connections, 'red')
-            self.create_connections(data_connections, 'blue')
-            self.update_all()
-        except Exception as e:
-            print("File reading error")
-            print(e)
 
 
 if __name__ == "__main__":

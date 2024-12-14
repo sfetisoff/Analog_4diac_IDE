@@ -1,5 +1,4 @@
 from PyQt5.QtCore import QRect, QPoint
-
 from editable_label import EditableLabel
 
 class MyRect(QRect):
@@ -19,22 +18,22 @@ class MyRect(QRect):
 
 
 class MyBlock:
-    def __init__(self, main_window, name=None, x=300, y=300, width=100, height=140, color='white', n_rects_left=4, n_rects_right=4, labels=None):
+    def __init__(self, main_window, name=None, x=300, y=300, width=100, height=140, color='white', n_rects_left=4,
+                 n_rects_right=4, labels=None):
         self.main_window = main_window
         self.name = name
         self.block_size_coef = 1
-        self.x = x # Координата х центрального элемента
-        self.y = y # Координаты у центрального элемента
+        self.x = x  # Координата х центрального элемента
+        self.y = y  # Координаты у центрального элемента
         self.width = int(width * self.block_size_coef)
         self.height = int(height * self.block_size_coef)
         self.rectangles = []
         self.labels = labels
         self.type = labels[0]
 
-
         self.create_label()
 
-        self.connections = {self.labels[i]: [] for i in range(1,len(self.labels))}
+        self.connections = {self.labels[i]: [] for i in range(1, len(self.labels))}
         self.n_rects_left = n_rects_left
         self.n_rects_right = n_rects_right
         self.color = color
@@ -68,7 +67,6 @@ class MyBlock:
                                                     x=rect.value_x, y=rect.value_y,
                                                     width=rect.value_width, height=rect.value_height)
 
-
     def create_rect(self):
         self.rectangles.append(MyRect(self.x, self.y, self.width, self.height,
                                       name=self.type, parent=self))
@@ -76,7 +74,7 @@ class MyBlock:
         for cur_rect in range(self.n_rects_left):
             new_y = int(self.y + (self.height / self.n_rects_left) * cur_rect)
             new_rect = MyRect(cell_x_left, new_y, self.cell_width, self.cell_height_left,
-                   name=self.labels[1 + cur_rect], parent=self)
+                              name=self.labels[1 + cur_rect], parent=self)
             new_rect.is_left = True
             self.rectangles.append(new_rect)
 
@@ -91,9 +89,9 @@ class MyBlock:
             dx = self.main_window.last_mouse_pos.x() - rect.x()
             dy = self.main_window.last_mouse_pos.y() - rect.y()
             rect.moveTo(current_x - dx, current_y - dy)
-            if rect!=self.rectangles[0]:
+            if rect != self.rectangles[0]:
                 for polyline in rect.connect_lines:
-                    if rect.is_left: #Проверка прямоугольник источник сигнала или приёмник
+                    if rect.is_left:  # Проверка прямоугольник источник сигнала или приёмник
                         if polyline.simple:
                             if polyline.source_x + 40 < polyline.destination_x:
                                 if polyline.dx1 > rect.left() - polyline.source_x - 20:
@@ -133,33 +131,3 @@ class MyBlock:
                                                    source=QPoint(rect.right() + 1, rect.center().y()))
             self.x = self.rectangles[0].x()
             self.y = self.rectangles[0].y()
-
-
-class BlockStart(MyBlock):
-    def __init__(self, main_window, name='E_RESTART', x=50, y=100):
-        super().__init__(main_window, name=name, width=60, height=80, x=x, y=y,
-                         n_rects_left=1, n_rects_right=2, labels=['E_RESTART', 'STOP', 'COLD', 'WARM'])
-
-
-class BlockA(MyBlock): # INT2INT
-    def __init__(self, main_window, name='INT2INT', x=300, y=300):
-        super().__init__(main_window, name=name, width=60, height=82, x=x, y=y,
-                         n_rects_left=2, n_rects_right=2, labels=['INT2INT', 'REQ', 'IN', 'CNF', 'OUT'])
-
-
-class BlockB(MyBlock): #OUT_ANY_CONSOLE
-    def __init__(self, main_window, name='OUT_ANY_CONSOLE',x=300,y=300):
-        super().__init__(main_window, name=name, width=92, height=112, x=x, y=y,
-                         n_rects_left=4, n_rects_right=2, labels=['OUT_ANY_CONSOLE','REQ','QI','LABEL','IN','CNF','QO'])
-
-
-class BlockC(MyBlock):
-    def __init__(self, main_window, name='STRING2STRING', x=300, y=300):
-        super().__init__(main_window, name=name, x=x, y=y, width=84, height=82,
-                         n_rects_left=2, n_rects_right=2, labels=['STRING2STRING', 'REQ', 'IN', 'CNF', 'OUT'])
-
-
-class BlockD(MyBlock):
-    def __init__(self, main_window, name='F_ADD', x=300, y=300):
-        super().__init__(main_window, name=name, width=50, height=96, x=x, y=y,
-                         n_rects_left=3, n_rects_right=2, labels=['F_ADD', 'REQ', 'IN1', 'IN2', 'CNF', 'OUT'])

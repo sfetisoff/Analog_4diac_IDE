@@ -125,7 +125,6 @@ class MainWindow(QMainWindow):
         self.setMouseTracking(True)
         self.polylines_list = []
         self.current_connection = None
-        # self.test_connection = connection(QPoint(300,150), QPoint(100,300))
         self.drawing = False
         self.movable_polyline = None
 

@@ -1,5 +1,4 @@
 import socket
-import os
 import struct
 
 
@@ -8,11 +7,12 @@ class TcpFileSender():
         # Создание сокета
         self.file_path = file_path
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        self.set_connection()
-        self.send_fboot()
-        self.disconnect()
-
+        try:
+            self.set_connection()
+            self.send_fboot()
+            self.disconnect()
+        except:
+            print('Error during connection with forte')
     def set_connection(self):
         # Подключение к серверу
         server_address = ('localhost', 61499)
@@ -23,10 +23,6 @@ class TcpFileSender():
         self.client_socket.close()
 
     def send_fboot(self):
-        # Чтение fboot файла
-        # parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-        # file_path = os.path.join(parent_dir, self.file_path)
-        
         print("File path:", self.file_path)
         file = open(self.file_path, 'r')
 
@@ -42,7 +38,6 @@ class TcpFileSender():
             res_name_length = struct.pack('h', separator)[::-1]
             xml_com_length = struct.pack('h', len(xml_com))[::-1]
             message = '\x50' + res_name_length.decode() + res_name + '\x50' + xml_com_length.decode() + xml_com
-            # print(message)
 
             # Отправка данных
             self.client_socket.sendall(message.encode())
@@ -54,12 +49,9 @@ class TcpFileSender():
                 print(f'Received: {response.decode()}\n')
 
             except socket.timeout:
-                print("Таймаут: ожидание данных...")
+                print("Timeout: waiting for data...")
                 continue
 
 
 if __name__ == '__main__':
     tcp_file_sender = TcpFileSender('../k.fboot')
-    # tcp_file_sender.set_connection()
-    # tcp_file_sender.send_fboot()
-    # tcp_file_sender.disconnect()

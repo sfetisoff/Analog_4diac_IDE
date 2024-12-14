@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QMainWindow
+from PyQt5.QtWidgets import QLabel, QLineEdit
 from PyQt5.QtGui import QFont
 
 class EditableLabel:
@@ -14,7 +14,6 @@ class EditableLabel:
         self.label.setFont(font)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setGeometry(x, y, width, height)
-        #self.label.setStyleSheet("border: 1px solid black; padding: 5px;")
         self.label.mousePressEvent = self.edit_label
         self.label.show()
 
