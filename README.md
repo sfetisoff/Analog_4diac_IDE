@@ -34,10 +34,10 @@ The project_files folder is needed to store the boot file for deploy and to save
 
 Screenshots:
 - ![main_window](images/main_window.png)
-- ![select](images/select%20block.png) 
 - ![delete_block](images/block_del.png) 
 - ![changing name](images/change_name.png)
 - ![changing field](images/change_value.png)
+- ![select](images/select%20block.png) 
 - ![opening saving](images/opening%20saving.png)
 - ![deploy](images/deploy.png)
 ## Support
