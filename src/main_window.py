@@ -220,19 +220,19 @@ class MyMain(QMainWindow):
     def create_actions(self):
 
         create_Start_action = QAction("START", self)
-        create_Start_action.triggered.connect(self.create_block_Start)
+        create_Start_action.triggered.connect(lambda: cb.create_block_Start(self))
 
         create_A_action = QAction("INT2INT", self)
-        create_A_action.triggered.connect(self.create_block_A)
+        create_A_action.triggered.connect(lambda: cb.create_block_A(self))
 
         create_B_action = QAction("OUT_ANY_CONSOLE", self)
-        create_B_action.triggered.connect(self.create_block_B)
+        create_B_action.triggered.connect(lambda: cb.create_block_B(self))
 
         create_C_action = QAction("STRING2STRING", self)
-        create_C_action.triggered.connect(self.create_block_C)
+        create_C_action.triggered.connect(lambda: cb.create_block_C(self))
 
         create_D_action = QAction("F_ADD", self)
-        create_D_action.triggered.connect(self.create_block_D)
+        create_D_action.triggered.connect(lambda: cb.create_block_D(self))
 
         self.menu_blocks.addAction(create_Start_action)
         self.menu_blocks.addAction(create_A_action)
@@ -276,34 +276,7 @@ class MyMain(QMainWindow):
                         print(f"Connection Source = {block.name}.{source_element},"
                               f"Destination = {dest_block_name}.{dest_el}, Comment = ")
 
-    def create_block_Start(self):
-        self.block_start = cb.BlockStart(self, 'START')
-        self.list_blocks.append(self.block_start)
-        self.update_all()
 
-    def create_block_A(self):  # INT2INT
-        k_blocks = self.count_blocks['Block_A']  # Сколько блоков такого типа уже есть
-        self.list_blocks.append(cb.BlockA(self, f'INT2INT_{k_blocks}'))
-        self.count_blocks['Block_A'] += 1
-        self.update_all()
-
-    def create_block_B(self):
-        k_blocks = self.count_blocks['Block_B']  # Сколько блоков такого типа уже есть
-        self.list_blocks.append(cb.BlockB(self, f'OUT_ANY_CONSOLE_{k_blocks}'))
-        self.count_blocks['Block_B'] += 1
-        self.update_all()
-
-    def create_block_C(self):
-        k_blocks = self.count_blocks['Block_C']
-        self.list_blocks.append(cb.BlockC(self, f'STRING2STRING_{k_blocks}'))
-        self.count_blocks['Block_C'] += 1
-        self.update_all()
-
-    def create_block_D(self):
-        k_blocks = self.count_blocks['Block_D']
-        self.list_blocks.append(cb.BlockD(self, f'F_ADD_{k_blocks}'))
-        self.count_blocks['Block_D'] += 1
-        self.update_all()
 
     def contextMenuEvent(self, event):
         cur_polyline, text = self.check_moving_connect(event)

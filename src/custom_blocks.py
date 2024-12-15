@@ -31,6 +31,34 @@ class BlockD(MyBlock):  # F_ADD
         super().__init__(main_window, name=name, width=50, height=96, x=x, y=y,
                          n_rects_left=3, n_rects_right=2, labels=['F_ADD', 'REQ', 'IN1', 'IN2', 'CNF', 'OUT'])
 
+def create_block_Start(main_window):
+    main_window.block_start = BlockStart(main_window, 'START')
+    main_window.list_blocks.append(main_window.block_start)
+    main_window.update_all()
+
+def create_block_A(main_window):  # INT2INT
+    k_blocks = main_window.count_blocks['Block_A']  # Сколько блоков такого типа уже есть
+    main_window.list_blocks.append(BlockA(main_window, f'INT2INT_{k_blocks}'))
+    main_window.count_blocks['Block_A'] += 1
+    main_window.update_all()
+
+def create_block_B(main_window):
+    k_blocks = main_window.count_blocks['Block_B']  # Сколько блоков такого типа уже есть
+    main_window.list_blocks.append(BlockB(main_window, f'OUT_ANY_CONSOLE_{k_blocks}'))
+    main_window.count_blocks['Block_B'] += 1
+    main_window.update_all()
+
+def create_block_C(main_window):
+    k_blocks = main_window.count_blocks['Block_C']
+    main_window.list_blocks.append(BlockC(main_window, f'STRING2STRING_{k_blocks}'))
+    main_window.count_blocks['Block_C'] += 1
+    main_window.update_all()
+
+def create_block_D(main_window):
+    k_blocks = main_window.count_blocks['Block_D']
+    main_window.list_blocks.append(BlockD(main_window, f'F_ADD_{k_blocks}'))
+    main_window.count_blocks['Block_D'] += 1
+    main_window.update_all()
 
 def all_block_classes():
     classes = {'E_RESTART': BlockStart,
