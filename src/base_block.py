@@ -17,7 +17,7 @@ class MyRect(QRect):
         self.data_element = False
 
 
-class MyBlock:
+class BaseBlock:
     def __init__(self, main_window, name=None, x=300, y=300, width=100, height=140, color='white', n_rects_left=4,
                  n_rects_right=4, labels=None):
         self.main_window = main_window

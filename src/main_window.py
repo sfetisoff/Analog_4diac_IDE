@@ -18,7 +18,7 @@ class MyMain(QMainWindow):
         self.list_blocks = []  # Список со всеми блоками
         self.block_start = None
         self.file_path = '../project_files/project1.xml'
-        self.label = QLabel("Нажмите и двигайте мышь", self)
+        self.label = QLabel("", self)
         self.label.setGeometry(10, 10, 300, 50)
         # Хранение координат для рисования
         self.current_x = 300
@@ -106,7 +106,7 @@ class MyMain(QMainWindow):
         self.current_x = event.x()
         self.current_y = event.y()
         self.last_mouse_pos = event.pos()
-        self.label.setText(f"Нажато в ({self.current_x}, {self.current_y})")
+        self.label.setText(f"Pressed in ({self.current_x}, {self.current_y})")
 
         self.movable_polyline, self.coord = self.check_moving_connect(event)  # Проверка нажали ли мы на соединение
 
@@ -162,14 +162,14 @@ class MyMain(QMainWindow):
         self.movable_polyline = None
         x = event.x()
         y = event.y()
-        self.label.setText(f"Отпущено в ({x}, {y})")
+        self.label.setText(f"Release in ({x}, {y})")
         self.update()
 
     def mouseMoveEvent(self, event):
         self.current_x = event.x()
         self.current_y = event.y()
         if self.pressed:  # Если кнопка мыши нажата
-            self.label.setText(f"Движение нажатой мыши в ({self.current_x}, {self.current_y})")
+            self.label.setText(f"Movement of the pressed mouse in ({self.current_x}, {self.current_y})")
             if self.current_block:  # Если выбран блок для перемещения
                 self.current_block.change_coords(self.current_x, self.current_y)
             elif self.drawing_connection:  # Если мы рисуем новую связь
@@ -177,7 +177,7 @@ class MyMain(QMainWindow):
             else:
                 self.change_movable_connection(event)
         else:
-            self.label.setText(f"Движение мыши в ({self.current_x}, {self.current_y})")
+            self.label.setText(f"Mouse movement in ({self.current_x}, {self.current_y})")
             self.check_moving_connect(event)
 
         self.last_mouse_pos = event.pos()
